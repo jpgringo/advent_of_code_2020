@@ -5,7 +5,7 @@ const readline = require('readline');
 const fieldNames = ['byr', 'iyr', 'eyr', 'hgt', 'hcl', 'ecl', 'pid', 'cid'];
 
 async function getDataSet() {
-  const fileStream = fs.createReadStream(path.join(__dirname, 'input_data.txt'));
+  const fileStream = fs.createReadStream(path.join(__dirname, '../data_sources/day_04_input_data.txt'));
   const rl = readline.createInterface({input: fileStream, crlfDelay: Infinity})
   const data = [];
   const fieldRegex = new RegExp('(' + fieldNames.join('|') + '):([^ ]+)', 'gi');

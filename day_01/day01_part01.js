@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 function getDataSet() {
-  const foo = fs.readFileSync(path.join(__dirname, 'input_data.txt'), {encoding: "utf-8"});
+  const foo = fs.readFileSync(path.join(__dirname, '../data_sources/day_01_input_data.txt'), {encoding: "utf-8"});
   return foo.match(/\d+/g).map(input => parseInt(input));
 }
 

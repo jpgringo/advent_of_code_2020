@@ -1,0 +1,15 @@
+{application, aoc_2020,
+ [{description, "An OTP application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {aoc_2020_app, []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[{input_root, "/Users/rick/Documents/Dev/Advent of Code/AdventOfCode_2020/data_sources"}]},
+  {modules, []},
+
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.

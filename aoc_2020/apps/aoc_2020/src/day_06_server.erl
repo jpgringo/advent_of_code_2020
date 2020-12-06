@@ -33,6 +33,10 @@ handle_cast({data_ready, part_01, ParsedData}, State = #day_06_server_state{}) -
   io:fwrite("day_06, data_ready ~n"),
   tally_all_responses(ParsedData),
   {noreply, State};
+handle_cast({data_ready, part_02, ParsedData}, State = #day_06_server_state{}) ->
+  io:fwrite("day_06, part_02: data_ready ~n"),
+  tally_unanimous_responses(ParsedData),
+  {noreply, State};
 handle_cast(_Request, State = #day_06_server_state{}) ->
   io:fwrite("day_06, unknown cast: ~w~n", [_Request]),
   {noreply, State}.
@@ -40,6 +44,10 @@ handle_cast(_Request, State = #day_06_server_state{}) ->
 handle_info(part_01, State = #day_06_server_state{}) ->
   io:fwrite("~p:handle_info. running part 01~n", [?SERVER]),
   gen_server:cast(input_server, {parse, day_06, part_01, self()}),
+  {noreply, State};
+handle_info(part_02, State = #day_06_server_state{}) ->
+  io:fwrite("~p:handle_info. running part 02~n", [?SERVER]),
+  gen_server:cast(input_server, {parse, day_06, part_02, self()}),
   {noreply, State};
 handle_info(_Info, State = #day_06_server_state{}) ->
   {noreply, State}.
@@ -65,3 +73,17 @@ tally_group_responses([Group | RemainingResponses], Tally) ->
   tally_group_responses(RemainingResponses, Tally + sets:size(YesResponses)).
 tally_all_responses(ResponseData) ->
   io:fwrite("TotalResponses = ~p~n", [tally_group_responses(ResponseData, 0)]).
+
+tally_unanimous_group_responses([], Tally) ->
+  Tally;
+tally_unanimous_group_responses([Group | RemainingResponses], Tally) ->
+  UnanimousResponses = lists:foldl(fun(PersonRecord, Acc) ->
+    Responses = sets:from_list(PersonRecord),
+    case Acc of
+              empty -> Responses;
+              Set -> sets:intersection(Set, Responses)
+            end
+                                      end, empty, Group),
+  tally_unanimous_group_responses(RemainingResponses, Tally + sets:size(UnanimousResponses)).
+tally_unanimous_responses(ResponseData) ->
+  io:fwrite("TotalResponses = ~p~n", [tally_unanimous_group_responses(ResponseData, 0)]).

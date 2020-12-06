@@ -16,7 +16,7 @@
 -define(F, "F").
 -define(B, "B").
 
--record(day_04_server_state, {}).
+-record(day_05_server_state, {}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -27,39 +27,39 @@ start_link() ->
 
 init([]) ->
   io:fwrite("day_05_server inited~n"),
-  {ok, #day_04_server_state{}}.
+  {ok, #day_05_server_state{}}.
 
-handle_call(_Request, _From, State = #day_04_server_state{}) ->
+handle_call(_Request, _From, State = #day_05_server_state{}) ->
   {reply, ok, State}.
 
-handle_cast({data_ready, part_01, ParsedData}, State = #day_04_server_state{}) ->
+handle_cast({data_ready, part_01, ParsedData}, State = #day_05_server_state{}) ->
   io:fwrite("day_05, data_ready ~n"),
   find_highest_pass_id(ParsedData),
   {noreply, State};
-handle_cast({data_ready, part_02, ParsedData}, State = #day_04_server_state{}) ->
+handle_cast({data_ready, part_02, ParsedData}, State = #day_05_server_state{}) ->
   io:fwrite("day_05, data_ready ~n"),
   find_my_seat(ParsedData),
   {noreply, State};
-handle_cast(_Request, State = #day_04_server_state{}) ->
+handle_cast(_Request, State = #day_05_server_state{}) ->
   io:fwrite("day_05, unknown cast: ~w~n", [_Request]),
   {noreply, State}.
 
-handle_info(part_01, State = #day_04_server_state{}) ->
+handle_info(part_01, State = #day_05_server_state{}) ->
   io:fwrite("~p:handle_info. running part 01~n", [?SERVER]),
   gen_server:cast(input_server, {parse, day_05, part_01, self()}),
   {noreply, State};
-handle_info(part_02, State = #day_04_server_state{}) ->
+handle_info(part_02, State = #day_05_server_state{}) ->
   io:fwrite("~p:handle_info. running part 02~n", [?SERVER]),
   gen_server:cast(input_server, {parse, day_05, part_02, self()}),
   {noreply, State};
-handle_info(_Info, State = #day_04_server_state{}) ->
+handle_info(_Info, State = #day_05_server_state{}) ->
   io:fwrite("~p:handle_info. UNKNOWN MESSAGE: ~p~n", [?SERVER, _Info]),
   {noreply, State}.
 
-terminate(_Reason, _State = #day_04_server_state{}) ->
+terminate(_Reason, _State = #day_05_server_state{}) ->
   ok.
 
-code_change(_OldVsn, State = #day_04_server_state{}, _Extra) ->
+code_change(_OldVsn, State = #day_05_server_state{}, _Extra) ->
   {ok, State}.
 
 %%%===================================================================

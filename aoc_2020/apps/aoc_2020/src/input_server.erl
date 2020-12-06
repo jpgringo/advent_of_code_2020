@@ -68,11 +68,26 @@ process_line(eof, _, _SrcFile, ParsedData) ->
   {ok, lists:reverse(ParsedData)};
 process_line(Line, day_05, SrcFile, ParsedData) ->
   {ok, Data} = Line,
-  process_line(file:read_line(SrcFile), day_05, SrcFile, [string:chomp(Data) | ParsedData]).
+  process_line(file:read_line(SrcFile), day_05, SrcFile, [string:chomp(Data) | ParsedData]);
+process_line(Line, day_06, SrcFile, ParsedData) ->
+  {ok, Data} = Line,
+  TrimmedData = string:chomp(Data),
+  UpdatedData = case length(TrimmedData) of
+                  0 -> [[] | ParsedData];
+                  _ ->
+                    case ParsedData of
+                         [] -> [[TrimmedData]];
+                         PD -> [First | Rest ] = PD,
+                           [[TrimmedData | First ] | Rest ]
+                       end
+                end,
+  process_line(file:read_line(SrcFile), day_06, SrcFile, UpdatedData).
 process_line(Line, PuzzleId, SrcFile) ->
   process_line(Line, PuzzleId, SrcFile, []).
 
 process_file(day_05, SrcFile) ->
   process_line(file:read_line(SrcFile), day_05, SrcFile);
+process_file(day_06, SrcFile) ->
+  process_line(file:read_line(SrcFile), day_06, SrcFile);
 process_file(PuzzleId, _SrcFile) ->
   {err, io_lib:format("I don't know how to process sources for ~p", [PuzzleId])}.

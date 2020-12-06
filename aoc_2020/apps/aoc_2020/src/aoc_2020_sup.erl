@@ -48,7 +48,8 @@ init([]) ->
   Procs = [
     InputServerSpec,
     ?PUZZLE_SERVER_SPEC(day_04_server,day_04_server, []),
-    ?PUZZLE_SERVER_SPEC(day_05_server,day_05_server, [])
+    ?PUZZLE_SERVER_SPEC(day_05_server,day_05_server, []),
+    ?PUZZLE_SERVER_SPEC(day_06_server,day_06_server, [])
   ],
     {ok, {{one_for_all, 0, 1}, Procs}}.
 

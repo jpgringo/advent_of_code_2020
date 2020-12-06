@@ -81,13 +81,11 @@ process_line(Line, day_06, SrcFile, ParsedData) ->
                            [[TrimmedData | First ] | Rest ]
                        end
                 end,
-  process_line(file:read_line(SrcFile), day_06, SrcFile, UpdatedData).
+  process_line(file:read_line(SrcFile), day_06, SrcFile, UpdatedData);
+process_line(_Line, UnknownPuzzleId, _SrcFile, _UpdatedData) ->
+  {err, io_lib:format("I don't know how to process sources for ~p", [UnknownPuzzleId])}.
 process_line(Line, PuzzleId, SrcFile) ->
   process_line(Line, PuzzleId, SrcFile, []).
 
-process_file(day_05, SrcFile) ->
-  process_line(file:read_line(SrcFile), day_05, SrcFile);
-process_file(day_06, SrcFile) ->
-  process_line(file:read_line(SrcFile), day_06, SrcFile);
-process_file(PuzzleId, _SrcFile) ->
-  {err, io_lib:format("I don't know how to process sources for ~p", [PuzzleId])}.
+process_file(PuzzleId, SrcFile) ->
+  process_line(file:read_line(SrcFile), PuzzleId, SrcFile).

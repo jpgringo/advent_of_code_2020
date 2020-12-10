@@ -113,13 +113,20 @@ process_line(Line, day_08, SrcFile, ParsedData) ->
   TrimmedData = string:chomp(Data),
   {ok, LineMP} = re:compile("(jmp|acc|nop)\s+([0-9+-]+)"),
   LineData = case re:run(TrimmedData, LineMP) of
-    {match, [_, {OpStart, OpEnd}, {ArgStart, ArgEnd}]} ->
-      {ArgValue, []} = string:to_integer(string:slice(TrimmedData, ArgStart, ArgEnd)),
-               #{op => list_to_atom(string:slice(TrimmedData, OpStart, OpEnd)),
-                 arg => ArgValue};
-    nomatch -> throw(io_lib:format("badly formatted line: ~s", [TrimmedData]))
-  end,
+               {match, [_, {OpStart, OpEnd}, {ArgStart, ArgEnd}]} ->
+                 {ArgValue, []} = string:to_integer(string:slice(TrimmedData, ArgStart, ArgEnd)),
+                 #{op => list_to_atom(string:slice(TrimmedData, OpStart, OpEnd)),
+                   arg => ArgValue};
+               nomatch -> throw(io_lib:format("badly formatted line: ~s", [TrimmedData]))
+             end,
   process_line(file:read_line(SrcFile), day_08, SrcFile, [LineData | ParsedData]);
+process_line(Line, day_09, SrcFile, ParsedData) ->
+  {ok, Data} = Line,
+  TrimmedData = case string:to_integer(string:chomp(Data)) of
+                  {error, _} -> throw(io_lib:format("badly formatted line: ~s~n", [Data]));
+                  {Int, _} -> Int
+                end,
+  process_line(file:read_line(SrcFile), day_09, SrcFile, [TrimmedData | ParsedData]);
 process_line(_Line, UnknownPuzzleId, _SrcFile, _UpdatedData) ->
   {err, io_lib:format("I don't know how to process sources for ~p", [UnknownPuzzleId])}.
 process_line(Line, PuzzleId, SrcFile) ->

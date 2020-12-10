@@ -34,12 +34,21 @@ handle_cast({data_ready, part_01, ParsedData}, State = #day_09_server_state{}) -
   Result = find_first_invalid_entry(ParsedData, State#day_09_server_state.head_size),
   io:fwrite("~p is the first number for which addends could not be found~n", [Result]),
   {noreply, State};
+handle_cast({data_ready, part_02, ParsedData}, State = #day_09_server_state{}) ->
+  io:fwrite("day_09, data_ready...~n", []),
+  EncryptionWeakness = find_encryption_weakness(ParsedData, State#day_09_server_state.head_size),
+  io:fwrite("Encryption weakness = ~p~n", [EncryptionWeakness]),
+  {noreply, State};
 handle_cast(_Request, State = #day_09_server_state{}) ->
   {noreply, State}.
 
 handle_info(part_01, State = #day_09_server_state{}) ->
   io:fwrite("~p:handle_info. running part 01~n", [?SERVER]),
   gen_server:cast(input_server, {parse, day_09, part_01, self()}),
+  {noreply, State};
+handle_info(part_02, State = #day_09_server_state{}) ->
+  io:fwrite("~p:handle_info. running part 02~n", [?SERVER]),
+  gen_server:cast(input_server, {parse, day_09, part_02, self()}),
   {noreply, State};
 handle_info(_Info, State = #day_09_server_state{}) ->
   {noreply, State}.
@@ -84,3 +93,26 @@ find_addends(Sum, [FirstAddend | RemainingAddends]) ->
     error ->
       find_addends(Sum, RemainingAddends)
   end.
+
+find_addend_group(TargetSum, AccumulatedAddends, [NextAddend | RemainingAddends], RunningTotal) ->
+  UpdatedTotal = RunningTotal + NextAddend,
+  case UpdatedTotal of
+    Sum when Sum < TargetSum ->
+      find_addend_group(TargetSum, [NextAddend | AccumulatedAddends], RemainingAddends, UpdatedTotal);
+    Sum when Sum =:= TargetSum -> {ok, AccumulatedAddends};
+    Sum when Sum > TargetSum -> {error, "TargetSum exceeded"}
+  end.
+find_addend_group(TargetSum, Entries) ->
+  [First | Remaining] = Entries,
+  case find_addend_group(TargetSum, [First], Remaining, First) of
+    {error, _Msg} -> find_addend_group(TargetSum, lists:nthtail(1, Entries));
+    {ok, ValidAddends} -> ValidAddends
+  end.
+
+find_encryption_weakness(Entries, HeadSize) ->
+  Result = find_first_invalid_entry(Entries, HeadSize),
+  AddendGroup = find_addend_group(Result, Entries),
+  SortedGroup = lists:sort(AddendGroup),
+  [Min | _] = SortedGroup,
+  Max = lists:last(SortedGroup),
+  Min + Max.

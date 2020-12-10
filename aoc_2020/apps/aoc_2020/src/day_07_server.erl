@@ -36,12 +36,22 @@ handle_cast({data_ready, part_01, ParsedData}, State = #day_07_server_state{}) -
   io:fwrite("Ancestor List = ~p~n", [AncestorList]),
   io:fwrite("~p different bags can ultimately contain a ~p bag~n", [length(AncestorList), TargetVertex]),
   {noreply, State};
+handle_cast({data_ready, part_02, ParsedData}, State = #day_07_server_state{}) ->
+  io:fwrite("day_07, part_02 data_ready: ~p~n", [ParsedData]),
+  TargetVertex = "shiny gold",
+  {Tally, ChildList} = get_children(ParsedData, TargetVertex),
+  io:fwrite(" a ~p bag can contain ~p bags in total, including: ~p~n", [TargetVertex, Tally, ChildList]),
+  {noreply, State};
 handle_cast(_Request, State = #day_07_server_state{}) ->
   {noreply, State}.
 
 handle_info(part_01, State = #day_07_server_state{}) ->
   io:fwrite("~p:handle_info. running part 01~n", [?SERVER]),
   gen_server:cast(input_server, {parse, day_07, part_01, self()}),
+  {noreply, State};
+handle_info(part_02, State = #day_07_server_state{}) ->
+  io:fwrite("~p:handle_info. running part 02~n", [?SERVER]),
+  gen_server:cast(input_server, {parse, day_07, part_02, self()}),
   {noreply, State};
 handle_info(_Info, State = #day_07_server_state{}) ->
   {noreply, State}.
@@ -62,10 +72,22 @@ get_ancestors(Graph, [Vertex | Rest], AncestorSet) ->
   OutNeighbours = digraph:out_neighbours(Graph, Vertex),
   NextTier = lists:foldl(fun(_Elem, AccIn) ->
     sets:union(AccIn, get_ancestors(Graph, [_Elem], sets:new()))
-                          end,
+                         end,
     sets:new(), OutNeighbours),
   NewNeighbours = sets:union(sets:from_list(OutNeighbours), NextTier),
   UpdatedAncestors = sets:union(AncestorSet, NewNeighbours),
   get_ancestors(Graph, Rest, UpdatedAncestors).
 get_ancestors(Graph, Vertex) ->
   lists:sort(sets:to_list(get_ancestors(Graph, [Vertex], sets:new()))).
+
+get_children(_Graph, [], Tally, Children, _Depth) ->
+  {Tally, Children};
+get_children(Graph, [Edge | Rest], Tally, Children, Depth) ->
+  {_, Vertex, _Parent, Count} = digraph:edge(Graph, Edge),
+  InEdges = digraph:in_edges(Graph, Vertex),
+  {ChildTally, ChildSet} = get_children(Graph, InEdges, 0, Children, Depth + 1),
+  get_children(Graph, Rest, Tally + Count + Count * ChildTally, sets:union(sets:add_element(Vertex, Children),ChildSet), Depth).
+get_children(Graph, Vertex) -> %hands off to the 'real' function
+  InEdges = digraph:in_edges(Graph, Vertex),
+  {Tally, ChildVertices} = get_children(Graph, InEdges, 0, sets:new(), 0),
+  {Tally, lists:sort(sets:to_list(ChildVertices))}.

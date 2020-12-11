@@ -45,14 +45,22 @@ init([]) ->
     shutdown => 2000,
     type => worker,
     modules => []},
+  InputServerSpec2 = #{id => input_server_2,
+    start => {input_server_2, start_link, []},
+    restart => permanent,
+    shutdown => 2000,
+    type => worker,
+    modules => []},
   Procs = [
     InputServerSpec,
+    InputServerSpec2,
     ?PUZZLE_SERVER_SPEC(day_04_server,day_04_server, []),
     ?PUZZLE_SERVER_SPEC(day_05_server,day_05_server, []),
     ?PUZZLE_SERVER_SPEC(day_06_server,day_06_server, []),
     ?PUZZLE_SERVER_SPEC(day_07_server,day_07_server, []),
     ?PUZZLE_SERVER_SPEC(day_08_server,day_08_server, []),
-    ?PUZZLE_SERVER_SPEC(day_09_server,day_09_server, [])
+    ?PUZZLE_SERVER_SPEC(day_09_server,day_09_server, []),
+    ?PUZZLE_SERVER_SPEC(day_10_server,day_10_server, [])
   ],
     {ok, {{one_for_all, 0, 1}, Procs}}.
 

@@ -28,16 +28,23 @@ init([]) ->
   {ok, #state{}}.
 
 handle_call({process_data, Line, AccumulatedData}, _From, S = #state{}) ->
-%%  io:fwrite("Unknown call request: ~p~n", [_sRequest]),
   UpdatedData = process_data(Line, AccumulatedData),
   {reply, {ok, UpdatedData}, S};
 handle_call(_Request, _From, S = #state{}) ->
   {reply, ok, S}.
 
 handle_cast({data_ready, part_01, {DataTable, RowNum, ColNum}}, S = #state{}) ->
-  io:fwrite("day_10, data_ready... ~p rows x ~p cols~n", [RowNum, ColNum]),
+  io:fwrite("day_11, data_ready... ~p rows x ~p cols~n", [RowNum, ColNum]),
   ets:new(?NT, [ordered_set, named_table]),
-  OccupiedCount = get_final_occupied_count(DataTable, RowNum, ColNum),
+  OccupiedCount = get_final_occupied_count(DataTable, RowNum, ColNum, 4),
+  TimeDiff = erlang:system_time(millisecond) - S#state.start_time,
+  io:fwrite("Occupied count=~p; Execution time=~pms~n", [OccupiedCount, TimeDiff]),
+  ets:delete(?NT),
+  {noreply, S};
+handle_cast({data_ready, part_02, {DataTable, RowNum, ColNum}}, S = #state{}) ->
+  io:fwrite("day_11, data_ready... ~p rows x ~p cols~n", [RowNum, ColNum]),
+  ets:new(?NT, [ordered_set, named_table]),
+  OccupiedCount = get_final_occupied_count(DataTable, RowNum, ColNum, 5, -1),
   TimeDiff = erlang:system_time(millisecond) - S#state.start_time,
   io:fwrite("Occupied count=~p; Execution time=~pms~n", [OccupiedCount, TimeDiff]),
   ets:delete(?NT),
@@ -48,6 +55,10 @@ handle_cast(_Request, S = #state{}) ->
 handle_info(part_01, S = #state{}) ->
   io:fwrite("~p:handle_info. running part 01~n", [?SERVER]),
   gen_server:cast(input_server_2, {parse, day_11, part_01, {process_data, {ets:new(current, [ordered_set]), 0, 0}}, self()}),
+  {noreply, S#state{start_time = erlang:system_time(millisecond)}};
+handle_info(part_02, S = #state{}) ->
+  io:fwrite("~p:handle_info. running part 01~n", [?SERVER]),
+  gen_server:cast(input_server_2, {parse, day_11, part_02, {process_data, {ets:new(current, [ordered_set]), 0, 0}}, self()}),
   {noreply, S#state{start_time = erlang:system_time(millisecond)}};
 handle_info(_Info, S = #state{}) ->
   {noreply, S}.
@@ -108,7 +119,7 @@ get_neighbours(Row, Column, Dimensions) ->
     [{_Key, Neighbours} | _] -> Neighbours
   end.
 
-count_occupied_cells(DataTable, Cells) ->
+count_occupied_adjacent_cells(DataTable, _CurrentCell, NeighbourCells) ->
   lists:foldl(fun(N, Acc) ->
     Acc + case ets:lookup(DataTable, N) of
             [] -> 0;
@@ -117,22 +128,59 @@ count_occupied_cells(DataTable, Cells) ->
             [{_, occupied}] -> 1
           end
               end,
-    0, Cells).
+    0, NeighbourCells).
 
-get_occupied_neighbour_count(DataTable, {CurrentRow, CurrentColumn}, RowCount, ColCount) ->
+make_cell_counting_function(_Range, Limits) ->
+  case _Range of
+    1 -> fun count_occupied_adjacent_cells/3;
+    R when R =:= -1; R >= 2 -> fun(DataTable, CurrentCell, Cells) ->
+      {RowLimit, ColLimit} = Limits,
+      RangeCheck = fun({Row, Col}) ->
+        (0 =< Row) and (Row =< RowLimit) and (0 =< Col) and (Col =< ColLimit)
+                   end,
+      Seeker = fun Seeker(CC, N, M) ->
+        Delta = lists:zipwith(fun(A, B) -> B - A end, tuple_to_list(CC), tuple_to_list(N)),
+        NewCell = list_to_tuple(lists:zipwith(fun(A, B) ->
+          A + B end, tuple_to_list(CC), lists:map(fun(Coord) -> Coord * M end, Delta))),
+        case RangeCheck(NewCell) of
+          false ->
+            0;
+          true -> Result = ets:lookup(DataTable, NewCell),
+            case Result of
+              [] -> 0;
+              [{_, floor}] -> Seeker(CC, N, M + 1);
+              [{_, occupied}] -> 1
+            end
+        end
+               end,
+      lists:foldl(fun(N, Acc) ->
+        Acc + case ets:lookup(DataTable, N) of
+                [] -> 0;
+                [{_, floor}] -> Seeker(CurrentCell, N, 2);
+                [{_, empty}] -> 0;
+                [{_, occupied}] -> 1
+              end
+                  end,
+        0, Cells)
+                               end;
+    R -> throw(io_lib:format("~p is outside of the usable range for cell searches", [R]))
+  end.
+
+
+get_occupied_neighbour_count(DataTable, {CurrentRow, CurrentColumn}, RowCount, ColCount, CellCountingFunction) ->
   Neighbours = get_neighbours(CurrentRow, CurrentColumn, {RowCount, ColCount}),
-  OccupiedNeighbourCount = count_occupied_cells(DataTable, Neighbours),
+  OccupiedNeighbourCount = CellCountingFunction(DataTable, {CurrentRow, CurrentColumn}, Neighbours), %%count_occupied_cells(DataTable, Neighbours),
   OccupiedNeighbourCount.
 
-tick(_DataTable, _TempTable, _Dimensions, [], [], ChangedCells) ->
+tick(_DataTable, _TempTable, _Dimensions, [], [], _NeighbourFunction, _MaxOccupiedNeighbours, ChangedCells) ->
   ChangedCells;
-tick(DataTable, TempTable, {RowCount, ColCount}, [_CurrentRow | RemainingRows], [], ChangedCells) ->
+tick(DataTable, TempTable, {RowCount, ColCount}, [_CurrentRow | RemainingRows], [], MaxOccupiedNeighbours, CellCountingFunction, ChangedCells) ->
   ColIndices = case RemainingRows of
                  [] -> [];
                  _ -> lists:seq(0, ColCount - 1)
                end,
-  tick(DataTable, TempTable, {RowCount, ColCount}, RemainingRows, ColIndices, ChangedCells);
-tick(DataTable, TempTable, {RowCount, ColCount}, Rows, [CurrentColumn | RemainingColumns], ChangedCells) ->
+  tick(DataTable, TempTable, {RowCount, ColCount}, RemainingRows, ColIndices, MaxOccupiedNeighbours, CellCountingFunction, ChangedCells);
+tick(DataTable, TempTable, {RowCount, ColCount}, Rows, [CurrentColumn | RemainingColumns], MaxOccupiedNeighbours, CellCountingFunction, ChangedCells) ->
   [CurrentRow | _] = Rows,
   CurrentCell = ets:lookup(DataTable, {CurrentRow, CurrentColumn}),
   UpdatedChangedCells = case CurrentCell of
@@ -140,37 +188,62 @@ tick(DataTable, TempTable, {RowCount, ColCount}, Rows, [CurrentColumn | Remainin
                             ets:insert(TempTable, {{CurrentRow, CurrentColumn}, floor}),
                             ChangedCells;
                           [] ->
-                            OccupiedNeighbourCount = get_occupied_neighbour_count(DataTable, {CurrentRow, CurrentColumn}, RowCount, ColCount),
+                            OccupiedNeighbourCount = get_occupied_neighbour_count(DataTable, {CurrentRow, CurrentColumn}, RowCount, ColCount, CellCountingFunction),
                             if OccupiedNeighbourCount =:= 0 ->
                               ets:insert(TempTable, {{CurrentRow, CurrentColumn}, occupied}),
                               ChangedCells + 1;
                               true -> ChangedCells
                             end;
                           _ ->
-                            OccupiedNeighbourCount = get_occupied_neighbour_count(DataTable, {CurrentRow, CurrentColumn}, RowCount, ColCount),
-                            if OccupiedNeighbourCount < 4 ->
+                            OccupiedNeighbourCount = get_occupied_neighbour_count(DataTable, {CurrentRow, CurrentColumn}, RowCount, ColCount, CellCountingFunction),
+                            if OccupiedNeighbourCount < MaxOccupiedNeighbours ->
                               ets:insert(TempTable, {{CurrentRow, CurrentColumn}, occupied}),
                               ChangedCells;
                               true -> ChangedCells + 1
                             end
                         end,
-  tick(DataTable, TempTable, {RowCount, ColCount}, Rows, RemainingColumns, UpdatedChangedCells).
+  tick(DataTable, TempTable, {RowCount, ColCount}, Rows, RemainingColumns, MaxOccupiedNeighbours, CellCountingFunction, UpdatedChangedCells).
 
-tick(DataTable, [RowCount, ColCount]) ->
+tick(DataTable, [RowCount, ColCount], MaxOccupiedNeighbours, CellCountingFunction) ->
   [RowIndices, ColIndices] = [lists:seq(0, RowCount - 1), lists:seq(0, ColCount - 1)],
   TempTable = ets:new(temp_table, [ordered_set]),
-  ChangedCells = tick(DataTable, TempTable, {RowCount, ColCount}, RowIndices, ColIndices, 0),
+  ChangedCells = tick(DataTable, TempTable, {RowCount, ColCount}, RowIndices, ColIndices, MaxOccupiedNeighbours, CellCountingFunction, 0),
+%%  print_current_state(TempTable, RowCount, ColCount),
   case ChangedCells of
     0 ->
       TempTable;
     CC ->
       io:fwrite("ChangedCells: ~p~n", [CC]), % useful progress indicator
       ets:delete(DataTable),
-      tick(TempTable, [RowCount, ColCount])
+      tick(TempTable, [RowCount, ColCount], MaxOccupiedNeighbours, CellCountingFunction)
   end.
 
-get_final_occupied_count(DataTable, RowCount, ColCount) ->
-  ResultTable = tick(DataTable, [RowCount, ColCount]),
+get_final_occupied_count(DataTable, RowCount, ColCount, MaxOccupiedNeighbours) ->
+  get_final_occupied_count(DataTable, RowCount, ColCount, MaxOccupiedNeighbours, 1).
+
+get_final_occupied_count(DataTable, RowCount, ColCount, MaxOccupiedNeighbours, SearchRange) ->
+  CellCountingFunction = make_cell_counting_function(SearchRange, {RowCount - 1, ColCount - 1}),
+%%  print_current_state(DataTable, RowCount, ColCount),
+  ResultTable = tick(DataTable, [RowCount, ColCount], MaxOccupiedNeighbours, CellCountingFunction),
   length(ets:match(ResultTable, {'$1', occupied})).
 
+% useful to switch on for dev, but really on when working with a reduced data set
+print_current_state(Table, Rows, Cols) ->
+  RowIndices = lists:seq(0, Rows - 1),
+  io:fwrite("~s~n", [string:pad("", Cols, leading, $-)]),
+  lists:foreach(fun(R) ->
+    CellValues = lists:map(fun(C) ->
+      case ets:match(Table, {{R, C}, '$1'}) of
+        [] -> $L;
+        [[floor]] -> $.;
+        [[occupied]] -> $#
+      end
+                           end, lists:seq(0, Cols - 1)),
+    io:fwrite("~s~n", [CellValues])
+                end,
+    RowIndices),
+  io:fwrite("~s~n", [string:pad("", Cols, leading, $-)]).
+
 % dimensions 0-98, 0-91
+% part 01 result: Occupied count=2359; Execution time=8155ms
+% part 02 result: Occupied count=2131; Execution time=9292ms

@@ -60,7 +60,8 @@ init([]) ->
     ?PUZZLE_SERVER_SPEC(day_07_server,day_07_server, []),
     ?PUZZLE_SERVER_SPEC(day_08_server,day_08_server, []),
     ?PUZZLE_SERVER_SPEC(day_09_server,day_09_server, []),
-    ?PUZZLE_SERVER_SPEC(day_10_server,day_10_server, [])
+    ?PUZZLE_SERVER_SPEC(day_10_server,day_10_server, []),
+    ?PUZZLE_SERVER_SPEC(day_11_server,day_11_server, [])
   ],
     {ok, {{one_for_all, 0, 1}, Procs}}.
 

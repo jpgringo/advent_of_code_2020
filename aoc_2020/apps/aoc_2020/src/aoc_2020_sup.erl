@@ -7,6 +7,7 @@
 
 -behaviour(supervisor).
 
+-include("specs.hrl").
 %% API
 -export([start_link/0]).
 
@@ -14,14 +15,6 @@
 -export([init/1]).
 
 -define(SERVER, ?MODULE).
--define(PUZZLE_SERVER_SPEC (ServerId, Module, Args),
-  #{id => ServerId,
-    start => {Module, start_link, Args},
-    restart => permanent,
-    shutdown => 2000,
-    type => worker,
-    modules => []}).
-
 
 %%====================================================================
 %% API functions
@@ -61,7 +54,8 @@ init([]) ->
     ?PUZZLE_SERVER_SPEC(day_08_server,day_08_server, []),
     ?PUZZLE_SERVER_SPEC(day_09_server,day_09_server, []),
     ?PUZZLE_SERVER_SPEC(day_10_server,day_10_server, []),
-    ?PUZZLE_SERVER_SPEC(day_11_server,day_11_server, [])
+    ?PUZZLE_SERVER_SPEC(day_11_server,day_11_server, []),
+    ?PUZZLE_SUP_SPEC(day_12_sup,day_12_sup, [])
   ],
     {ok, {{one_for_all, 0, 1}, Procs}}.
 

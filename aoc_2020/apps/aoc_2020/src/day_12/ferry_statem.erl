@@ -18,11 +18,11 @@
 -export([init/1, format_status/2, handle_event/4, terminate/3,
   code_change/4, callback_mode/0]).
 %state_functions
--export([north/3, west/3, south/3, east/3]).
+-export([north/3, west/3, south/3, east/3, static/3]).
 
 -define(SERVER, ?MODULE).
 -define(NEXT_STATE_TEMPLATE, "  -->  NextState=~p, Delta={~p,~p}, UpdatedPosition=~p~n").
--record(state, {position}).
+-record(state, {position, waypoint}).
 
 %%%===================================================================
 %%% API
@@ -105,6 +105,24 @@ east({call, From}, {Verb, Value}, S = #state{}) ->
   UpdatedPosition = {CurrentX + DeltaX, CurrentY + DeltaY},
   {next_state, NextStateName,
     S#state{position = UpdatedPosition}, {reply, From, {NextStateName, UpdatedPosition}}}.
+static({call, From}, {add_waypoint, Waypoint}, S = #state{}) ->
+  {next_state, static, S#state{waypoint = Waypoint}, {reply, From, {}}};
+static({call, From}, {Verb, Value}, S = #state{}) ->
+  UpdatedPosition = case Verb of
+                      f -> WaypointPosition = gen_server:call(S#state.waypoint, {get_position}),
+                        CurrentPosition = tuple_to_list(S#state.position),
+                        Delta = lists:zipwith(fun(A, B) -> B - A end, CurrentPosition,
+                          tuple_to_list(WaypointPosition)),
+                        Move = lists:map(fun(A) -> A * Value end, Delta),
+                        NewPosition = list_to_tuple(lists:zipwith(fun(A, B) ->
+                          A + B end, CurrentPosition, Move)),
+                        gen_server:call(S#state.waypoint, {update_position, list_to_tuple(Move)}),
+                        NewPosition;
+                      _ ->
+                        gen_server:call(S#state.waypoint, {execute_instruction, {Verb, Value}, S#state.position}),
+                        S#state.position
+                    end,
+  {next_state, static, S#state{position = UpdatedPosition}, {reply, From, UpdatedPosition}}.
 
 %% @private
 %% Only needed if callback_mode is handle_event_function
@@ -134,11 +152,11 @@ rotate(StartingDirection, _RotationDirection, Degrees) ->
                               end,
                      BaseIndex = floor(Degrees / 90),
                      DirectionCount = length(DirectionList),
-                     ActualIndex =  case _RotationDirection of
-                                      left -> ((BaseIndex + Offset) rem DirectionCount) + 1;
-                                      right ->
-                                        ((BaseIndex + ((DirectionCount - 1) - Offset)) rem DirectionCount) + 1
-                                    end,
+                     ActualIndex = case _RotationDirection of
+                                     left -> ((BaseIndex + Offset) rem DirectionCount) + 1;
+                                     right ->
+                                       ((BaseIndex + ((DirectionCount - 1) - Offset)) rem DirectionCount) + 1
+                                   end,
                      lists:nth(ActualIndex, case _RotationDirection of
                                               left -> DirectionList;
                                               right -> lists:reverse(DirectionList)

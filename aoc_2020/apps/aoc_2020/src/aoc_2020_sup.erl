@@ -55,7 +55,8 @@ init([]) ->
     ?PUZZLE_SERVER_SPEC(day_09_server,day_09_server, []),
     ?PUZZLE_SERVER_SPEC(day_10_server,day_10_server, []),
     ?PUZZLE_SERVER_SPEC(day_11_server,day_11_server, []),
-    ?PUZZLE_SUP_SPEC(day_12_sup,day_12_sup, [])
+    ?PUZZLE_SUP_SPEC(day_12_sup,day_12_sup, []),
+    ?PUZZLE_SERVER_SPEC(day_13_server,day_13_server, [])
   ],
     {ok, {{one_for_all, 0, 1}, Procs}}.
 
